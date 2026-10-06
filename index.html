@@ -13,22 +13,37 @@
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col font-sans antialiased">
   
-  <!-- 全局错误拦截器脚本 -->
+  <!-- 全局错误拦截器脚本 (已加入智能插件白名单过滤) -->
   <script>
     window.addEventListener('error', function(e) {
+      const msg = (e.message || '').toLowerCase();
+      const filename = (e.filename || '').toLowerCase();
+      
+      // 【智能过滤器】：屏蔽常见的浏览器插件和翻译工具引发的无意义报错
+      if (msg.includes('script error') && e.lineno === 0) return; 
+      if (msg.includes('resizeobserver')) return; // 翻译插件频繁引发的DOM重绘报错
+      if (filename.includes('extension://') || filename.includes('safari-extension')) return; // 明确屏蔽插件脚本
+      if (msg.includes('translate') || msg.includes('adblock') || msg.includes('ucbrowser')) return;
+
       const box = document.getElementById('global-error-console');
       const text = document.getElementById('global-error-text');
       if(box && text) {
         box.classList.remove('hidden');
-        text.innerText += `[JS语法报错] ${e.message} (${e.filename}:${e.lineno})\n`;
+        text.innerText += `[代码异常] ${e.message} \n位置: ${e.filename || '未知'}:${e.lineno}\n\n`;
       }
     });
+
     window.addEventListener('unhandledrejection', function(e) {
+      const reason = (e.reason || '').toString().toLowerCase();
+      
+      // 屏蔽去广告插件拦截网络请求产生的异步报错
+      if (reason.includes('extension') || reason.includes('blocked by client') || reason.includes('err_blocked_by_client')) return;
+
       const box = document.getElementById('global-error-console');
       const text = document.getElementById('global-error-text');
       if(box && text) {
         box.classList.remove('hidden');
-        text.innerText += `[异步拦截报错] ${e.reason}\n`;
+        text.innerText += `[系统报错] ${e.reason}\n\n`;
       }
     });
   </script>
@@ -37,11 +52,11 @@
   <div id="global-error-console" class="hidden fixed top-0 left-0 w-full z-50 bg-rose-950/95 border-b border-rose-500/50 backdrop-blur-md p-4 pt-[env(safe-area-inset-top)] shadow-xl">
     <div class="flex justify-between items-center mb-2">
       <h3 class="text-xs font-bold text-rose-400">⚠️ 系统运行异常报告</h3>
-      <button onclick="document.getElementById('global-error-console').classList.add('hidden')" class="bg-rose-900 text-rose-200 px-3 py-1 rounded text-[10px]">关闭屏蔽</button>
+      <button onclick="document.getElementById('global-error-console').classList.add('hidden')" class="bg-rose-900 hover:bg-rose-800 text-rose-200 px-3 py-1 rounded text-[10px] transition-colors">关闭屏蔽</button>
     </div>
     <div id="global-error-text" class="text-[10px] text-rose-200 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
-    <p class="text-[10px] text-rose-400/80 mt-2 font-bold border-t border-rose-900 pt-2">
-      开发者提示：<br>如果你看到此面板，说明手机浏览器限制了系统运行。<br>常见原因：手机开启了“无痕模式/隐私浏览”，导致本地数据库被强制禁用而崩溃。请退出无痕模式。
+    <p class="text-[10px] text-rose-400/80 mt-2 font-bold border-t border-rose-900 pt-2 leading-relaxed">
+      开发者提示：<br>如果你看到此面板，说明发生了真实的系统故障（插件干扰已被过滤）。<br>常见原因：手机开启了“无痕模式/隐私浏览”导致数据库崩溃，或 API 余额不足。请截图本面板以供排查。
     </p>
   </div>
 
