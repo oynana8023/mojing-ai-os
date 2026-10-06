@@ -23,12 +23,16 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: 准备 APP 资源
+      - name: 准备 APP 资源 (核心修复：打包所有逻辑文件)
         run: |
           mkdir www
-          # 因为是单文件极速版，只需要拷贝 index.html
+          # 把界面、逻辑(js)、样式(css)和技能库全部装进 APP 里
           cp index.html www/
-          # 生成 APP 配置文件
+          cp -r js www/ 2>/dev/null || true
+          cp -r css www/ 2>/dev/null || true
+          cp -r skills www/ 2>/dev/null || true
+          cp manifest.json www/ 2>/dev/null || true
+          
           echo '{"appId": "com.mojing.ai.os", "appName": "墨境AI", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
       - name: 安装 Capacitor (跨平台打包核心)
@@ -45,7 +49,6 @@ jobs:
       - name: 修复 Kotlin 依赖冲突并编译 APK
         run: |
           cd android
-          # 【核心修复】强行统一 Kotlin stdlib 版本，解决 Duplicate class 报错
           cat <<EOF >> build.gradle
           
           subprojects {
