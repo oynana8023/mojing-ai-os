@@ -5,76 +5,95 @@ class NovelApp {
   }
 
   async init() {
+    // 1. 绝对第一优先级：绑定界面UI！不论数据库死没死，确保按钮能点
     try {
-      // 尝试加载数据库
+      this.setupUI();
+    } catch(e) {
+      console.error("UI绑定异常:", e);
+    }
+
+    // 2. 监听数据库降级事件（容灾）
+    window.addEventListener('db-fallback', (e) => {
+      this.showError(`手机浏览器限制了存储权限，系统已自动降级为【临时内存模式】。\n在此模式下可正常体验，但⚠️刷新网页会导致未导出的进度丢失！\n(排查建议: 尝试更换Chrome浏览器或关闭浏览器的无痕安全模式)`);
+    });
+
+    // 3. 异步启动数据引擎（哪怕挂起也不会阻塞UI了）
+    try {
       await window.novelDB.init();
       await this.loadProviders();
-    } catch (err) {
-      console.error("数据引擎初始化失败:", err);
-      const errBox = document.getElementById('global-error-console');
-      if(errBox) {
-        errBox.classList.remove('hidden');
-        document.getElementById('global-error-text').innerText += `[数据库挂载失败]\n${err.message}\n(如果您在手机端，请务必退出【无痕模式/隐私浏览模式】，否则系统无法记录小说数据)\n\n`;
-      }
-    } finally {
-      // 【非常重要】不管数据库加载成功与否，UI事件必须强制绑定，否则底部导航条点击无反应！
-      this.setupUI();
-    }
-    
-    // 如果数据库坏了，这部分会报错，加上 catch 保证不阻塞
-    try {
       await this.renderChapters();
       await this.renderSkills();
     } catch (err) {
-      console.warn("渲染视图受阻 (可能因为DB未就绪):", err);
+      this.showError("数据加载出现严重故障: " + err.message);
+    }
+  }
+
+  showError(msg) {
+    const errBox = document.getElementById('global-error-console');
+    const errText = document.getElementById('global-error-text');
+    if(errBox && errText) {
+      errBox.classList.remove('hidden');
+      errText.innerText += `[系统警报] ${msg}\n\n`;
     }
   }
 
   async loadProviders() {
     const list = await window.novelDB.getAll('providers');
     this.providers = {};
-    list.forEach(p => this.providers[p.id] = p);
-    this.assignments = (await window.novelDB.get('projects', 'assignments'))?.value || {};
+    list.forEach(p => { this.providers[p.id] = p; });
+    const assignData = await window.novelDB.get('projects', 'assignments');
+    this.assignments = assignData ? assignData.value : {};
     this.renderProviders();
   }
 
   setupUI() {
-    // 底部导航栏强绑定
-    document.querySelectorAll('[data-tab-btn]').forEach(btn => {
-      btn.addEventListener('click', e => {
+    // 底部导航栏切换
+    const tabs = document.querySelectorAll('[data-tab-btn]');
+    for(let i=0; i<tabs.length; i++) {
+      tabs[i].addEventListener('click', e => {
         const tab = e.currentTarget.getAttribute('data-tab-btn');
-        // 隐藏所有
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-        // 显示目标
+        
+        const contents = document.querySelectorAll('.tab-content');
+        for(let j=0; j<contents.length; j++) contents[j].classList.add('hidden');
+        
         const targetTab = document.getElementById(`tab-${tab}`);
         if(targetTab) targetTab.classList.remove('hidden');
         
-        // 激活高亮
-        document.querySelectorAll('[data-tab-btn]').forEach(b => {
-          b.classList.toggle('text-zinc-100', b.dataset.tabBtn === tab);
-          b.classList.toggle('text-zinc-500', b.dataset.tabBtn !== tab);
-        });
+        for(let j=0; j<tabs.length; j++) {
+          const tBtn = tabs[j].getAttribute('data-tab-btn');
+          if (tBtn === tab) {
+            tabs[j].classList.add('text-zinc-100');
+            tabs[j].classList.remove('text-zinc-500');
+          } else {
+            tabs[j].classList.remove('text-zinc-100');
+            tabs[j].classList.add('text-zinc-500');
+          }
+        }
       });
-    });
+    }
 
-    // 绑定事件 (加入 ?. 防止DOM不存在时报错)
-    document.getElementById('btn-batch-add')?.addEventListener('click', () => this.handleBatchAddProviders());
-    document.getElementById('btn-refresh-all')?.addEventListener('click', () => this.handleRefreshAllFreePools());
-    document.getElementById('btn-smart-assign')?.addEventListener('click', () => this.handleSmartAssign(true));
+    const bind = (id, event, handler) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(event, handler);
+    };
 
-    document.getElementById('btn-import-skill')?.addEventListener('click', () => this.handleImportSkill());
-    document.getElementById('btn-deconstruct')?.addEventListener('click', () => this.handleDeconstruct());
-    document.getElementById('btn-run-deai')?.addEventListener('click', () => this.handleStandaloneDeAI());
-    document.getElementById('btn-copy-deai')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(document.getElementById('deai-output').innerText).then(() => alert('已复制修稿结果'));
+    bind('btn-batch-add', 'click', () => this.handleBatchAddProviders());
+    bind('btn-refresh-all', 'click', () => this.handleRefreshAllFreePools());
+    bind('btn-smart-assign', 'click', () => this.handleSmartAssign(true));
+    bind('btn-import-skill', 'click', () => this.handleImportSkill());
+    bind('btn-deconstruct', 'click', () => this.handleDeconstruct());
+    bind('btn-run-deai', 'click', () => this.handleStandaloneDeAI());
+    bind('btn-copy-deai', 'click', () => {
+      const out = document.getElementById('deai-output');
+      if(out) navigator.clipboard.writeText(out.innerText).then(() => alert('已复制修稿结果'));
     });
-    
-    document.getElementById('btn-start-pipeline')?.addEventListener('click', () => this.runMasterPipeline());
-    document.getElementById('btn-export-book')?.addEventListener('click', () => this.exportMarkdown());
+    bind('btn-start-pipeline', 'click', () => this.runMasterPipeline());
+    bind('btn-export-book', 'click', () => this.exportMarkdown());
   }
 
   async handleBatchAddProviders() {
-    const rawText = document.getElementById('inp-batch-keys').value.trim();
+    const inp = document.getElementById('inp-batch-keys');
+    const rawText = inp ? inp.value.trim() : '';
     if (!rawText) return alert("请先粘贴至少一个 API Key！");
 
     const parsedList = window.modelGateway.parseBatchKeys(rawText);
@@ -86,12 +105,14 @@ class NovelApp {
 
     let successCount = 0;
 
-    await Promise.allSettled(parsedList.map(async (item) => {
+    await Promise.all(parsedList.map(async (item) => {
       try {
-        const [quotaInfo, models] = await Promise.all([
+        const results = await Promise.all([
           window.modelGateway.fetchAccountQuota(item.type, item.key),
           window.modelGateway.fetchRemoteModels(item.type, item.key)
         ]);
+        const quotaInfo = results[0];
+        const models = results[1];
 
         const providerData = {
           id: `prov_${item.type}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
@@ -115,9 +136,9 @@ class NovelApp {
 
     btn.disabled = false;
     btn.innerText = "批量探查并接入";
-    document.getElementById('inp-batch-keys').value = '';
+    if(inp) inp.value = '';
 
-    alert(`批量处理完毕！成功激活 ${successCount} 个服务商。\n已实时提取最新免费模型池，并为你分配最优工位！`);
+    alert(`批量处理完毕！成功激活 ${successCount} 个服务商。\n已为你分配最优工位！`);
   }
 
   async handleRefreshAllFreePools() {
@@ -130,18 +151,18 @@ class NovelApp {
 
     let totalFreeNow = 0;
 
-    for (const pId of pKeys) {
-      const p = this.providers[pId];
+    for (let i=0; i<pKeys.length; i++) {
+      const p = this.providers[pKeys[i]];
       try {
-        const [newQuota, newModels] = await Promise.all([
+        const results = await Promise.all([
           window.modelGateway.fetchAccountQuota(p.type, p.apiKey, p.baseUrl),
           window.modelGateway.fetchRemoteModels(p.type, p.apiKey, p.baseUrl)
         ]);
-        p.quota = newQuota;
-        p.models = newModels;
+        p.quota = results[0];
+        p.models = results[1];
         p.updatedAt = Date.now();
         await window.novelDB.put('providers', p);
-        totalFreeNow += newModels.filter(m => m.isFree).length;
+        totalFreeNow += p.models.filter(m => m.isFree).length;
       } catch (e) {
         console.warn(`刷新供应商 [${p.type}] 异常:`, e);
       }
@@ -152,16 +173,15 @@ class NovelApp {
 
     btn.disabled = false;
     btn.innerText = "🔄 刷新免费池";
-    alert(`全网实时同步完成！\n当前全平台共有 ${totalFreeNow} 个模型处于免费状态。\n工位配置已自动适应最新状态。`);
+    alert(`全网同步完成！当前全平台共有 ${totalFreeNow} 个模型免费。`);
   }
 
-  async handleSmartAssign(showAlert = true) {
+  async handleSmartAssign(showAlert) {
     if (Object.keys(this.providers).length === 0) {
       if (showAlert) alert("尚未接入任何 Key，无法分配工位。");
       return;
     }
-    const newAssignments = window.modelGateway.autoAssignRoles(this.providers);
-    this.assignments = newAssignments;
+    this.assignments = window.modelGateway.autoAssignRoles(this.providers);
     await window.novelDB.put('projects', { id: 'assignments', value: this.assignments });
     this.renderProviders();
     if (showAlert) alert("⚡ 智能分工已自适应更新完毕！");
@@ -224,19 +244,35 @@ class NovelApp {
   }
 
   renderProviders() {
-    // 防御性提取所有模型
-    const allModels = Object.values(this.providers).flatMap(p => {
-      if(!Array.isArray(p.models)) return [];
-      return p.models.map(m => ({
-        pId: p.id, mId: m.id, name: `[${p.type}] ${m.id} ${m.isFree ? '(全免费)' : ''}`
-      }));
+    const allModels = [];
+    Object.keys(this.providers).forEach(k => {
+      const p = this.providers[k];
+      if(p.models && p.models.length > 0) {
+        p.models.forEach(m => {
+          allModels.push({
+            pId: p.id, mId: m.id, name: `[${p.type}] ${m.id} ${m.isFree ? '(全免费)' : ''}`
+          });
+        });
+      }
     });
 
-    const listHtml = Object.values(this.providers).map(p => {
-      const modelsArray = Array.isArray(p.models) ? p.models : [];
+    const pKeys = Object.keys(this.providers);
+    let listHtml = '';
+    for(let i=0; i<pKeys.length; i++) {
+      const p = this.providers[pKeys[i]];
+      const modelsArray = p.models || [];
       const freeModels = modelsArray.filter(m => m.isFree);
-      const quotaText = p.quota?.text || '就绪';
-      return `
+      const quotaText = p.quota && p.quota.text ? p.quota.text : '就绪';
+      
+      let freeTags = '';
+      if (freeModels.length > 0) {
+        const sliced = freeModels.slice(0, 8);
+        const tags = sliced.map(m => `<span class="text-[9px] bg-zinc-900 text-zinc-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">${m.id}</span>`).join('');
+        const more = freeModels.length > 8 ? `<span class="text-[9px] text-zinc-500 self-center">...等${freeModels.length}款</span>` : '';
+        freeTags = `<div class="mt-2 flex flex-wrap gap-1 max-h-16 overflow-y-auto">${tags}${more}</div>`;
+      }
+
+      listHtml += `
         <div class="bg-zinc-800/50 p-3 rounded-xl border border-white/5 text-xs">
           <div class="flex justify-between items-center mb-1">
             <div class="flex items-center gap-2">
@@ -246,29 +282,27 @@ class NovelApp {
             <button class="text-rose-400 font-bold hover:underline" onclick="window.novelApp.deleteProvider('${p.id}')">移除</button>
           </div>
           <div class="text-[10px] text-zinc-400">
-            全部模型: ${modelsArray.length} 款 ｜ 
-            <span class="text-emerald-400 font-semibold">今日可用免费模型: ${freeModels.length} 款</span>
+            全部模型: ${modelsArray.length} 款 ｜ <span class="text-emerald-400 font-semibold">可用免费模型: ${freeModels.length} 款</span>
           </div>
-          ${freeModels.length > 0 ? `
-            <div class="mt-2 flex flex-wrap gap-1 max-h-16 overflow-y-auto">
-              ${freeModels.slice(0, 8).map(m => `
-                <span class="text-[9px] bg-zinc-900 text-zinc-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">${m.id}</span>
-              `).join('')}
-              ${freeModels.length > 8 ? `<span class="text-[9px] text-zinc-500 self-center">...等${freeModels.length}款</span>` : ''}
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }).join('');
+          ${freeTags}
+        </div>`;
+    }
     document.getElementById('providers-list').innerHTML = listHtml;
 
-    const rolesHtml = Object.entries(window.agentDirector.roles).map(([roleKey, roleName]) => {
+    const rolesArr = Object.keys(window.agentDirector.roles);
+    let rolesHtml = '';
+    for(let i=0; i<rolesArr.length; i++) {
+      const roleKey = rolesArr[i];
+      const roleName = window.agentDirector.roles[roleKey];
       const current = this.assignments[roleKey] || {};
       const reasonTag = current.reason ? `<span class="text-[9px] text-amber-400/80 bg-amber-950/40 px-1 py-0.2 rounded ml-1">${current.reason}</span>` : '';
-      const opts = allModels.map(m => 
-        `<option value="${m.pId}@${m.mId}" ${current.providerId===m.pId && current.modelId===m.mId ? 'selected':''}>${m.name}</option>`
-      );
-      return `
+      
+      const opts = allModels.map(m => {
+        const isSelected = (current.providerId === m.pId && current.modelId === m.mId) ? 'selected' : '';
+        return `<option value="${m.pId}@${m.mId}" ${isSelected}>${m.name}</option>`;
+      }).join('');
+
+      rolesHtml += `
         <div class="flex justify-between items-center text-xs border-b border-white/5 py-2">
           <div class="w-1/3 flex flex-col">
             <span class="text-zinc-400 font-semibold">${roleName}</span>
@@ -276,19 +310,18 @@ class NovelApp {
           </div>
           <select class="bg-zinc-800 border border-white/10 rounded-lg p-1.5 w-2/3 text-zinc-200" onchange="window.novelApp.assignRole('${roleKey}', this.value)">
             <option value="">-- 选择接单模型 --</option>
-            ${opts.join('')}
+            ${opts}
           </select>
-        </div>
-      `;
-    }).join('');
+        </div>`;
+    }
     document.getElementById('agent-assignments').innerHTML = rolesHtml;
   }
 
   async assignRole(role, val) {
     if (!val) { delete this.assignments[role]; } 
     else {
-      const [providerId, modelId] = val.split('@');
-      this.assignments[role] = { providerId, modelId, reason: '用户手动指定' };
+      const parts = val.split('@');
+      this.assignments[role] = { providerId: parts[0], modelId: parts[1], reason: '用户手动指定' };
     }
     await window.novelDB.put('projects', { id: 'assignments', value: this.assignments });
     this.renderProviders();
@@ -321,6 +354,7 @@ class NovelApp {
 
   logMessage(agent, msg) {
     const box = document.getElementById('pipeline-logs');
+    if(!box) return;
     const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
     const div = document.createElement('div');
     div.className = "flex gap-2 items-start border-b border-white/5 pb-1.5 mt-1";
@@ -340,7 +374,8 @@ class NovelApp {
     btn.disabled = true;
     btn.innerText = "流水线马力全开，推演中...";
     document.getElementById('pipeline-logs').innerHTML = '';
-    document.getElementById('pipeline-status').innerText = 'RUNNING';
+    const statusEl = document.getElementById('pipeline-status');
+    if(statusEl) statusEl.innerText = 'RUNNING';
 
     try {
       const d = window.agentDirector;
@@ -356,7 +391,8 @@ class NovelApp {
       const outlineText = await d.step2_WorldAndOutline(marketPlan, chaptersCount, d.selectWorker('ARCHITECT', this.assignments), this.providers, this.logMessage.bind(this));
       
       await window.novelDB.put('projects', { id: 'current_lore', market: marketPlan, outline: outlineText });
-      document.getElementById('lore-container').innerText = outlineText;
+      const loreEl = document.getElementById('lore-container');
+      if(loreEl) loreEl.innerText = outlineText;
 
       let dynamicSummary = "这是开篇首章，世界观即将展开，主角即将遭遇改变命运的节点。";
 
@@ -371,7 +407,7 @@ class NovelApp {
         dynamicSummary = `前文重大因果事件回顾：${chapSummary}`; 
         
         await window.novelDB.put('chapters', { id: `chap_${i}`, order: i, title: chapTitle, content: polishedBody, time: Date.now() });
-        this.logMessage('本地数据库', `【${chapTitle}】已保存进本地持久化存储。`);
+        this.logMessage('本地数据库', `【${chapTitle}】已保存进存储。`);
         
         this.renderChapters(); 
       }
@@ -383,7 +419,7 @@ class NovelApp {
     } finally {
       btn.disabled = false;
       btn.innerText = "启动九层流水线创作";
-      document.getElementById('pipeline-status').innerText = 'IDLE';
+      if(statusEl) statusEl.innerText = 'IDLE';
     }
   }
 
@@ -392,6 +428,7 @@ class NovelApp {
     list.sort((a,b) => a.order - b.order);
     const box = document.getElementById('chapters-list');
     
+    if (!box) return;
     if (list.length === 0) {
       box.innerHTML = `<div class="text-zinc-600 text-[11px] text-center py-6">原稿库暂无章节</div>`;
       return;
@@ -401,9 +438,9 @@ class NovelApp {
       <div class="glass-card p-3.5">
         <div class="flex justify-between items-center mb-2">
           <h4 class="text-sm font-bold text-sky-400">${c.title}</h4>
-          <span class="text-[10px] text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded border border-white/5">${c.content.length} 字</span>
+          <span class="text-[10px] text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded border border-white/5">${(c.content || '').length} 字</span>
         </div>
-        <p class="text-xs text-zinc-400 line-clamp-4 mb-3 leading-relaxed whitespace-pre-wrap">${c.content.slice(0, 200)}...</p>
+        <p class="text-xs text-zinc-400 line-clamp-4 mb-3 leading-relaxed whitespace-pre-wrap">${(c.content || '').slice(0, 200)}...</p>
         <button class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold w-full py-2 rounded-lg text-xs transition-colors" onclick="window.novelApp.readChapter('${c.id}')">沉浸阅读全文</button>
       </div>
     `).join('');
@@ -438,4 +475,5 @@ class NovelApp {
 }
 
 window.novelApp = new NovelApp();
-window.addEventListener('DOMContentLoaded', () => window.novelApp.init());
+// 页面脚本加载完毕立即执行，无需等待 DOMContentLoaded
+window.novelApp.init();
