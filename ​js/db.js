@@ -7,19 +7,49 @@ class NovelDB {
 
   async init() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(this.dbName, this.version);
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('chapters')) db.createObjectStore('chapters', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('providers')) db.createObjectStore('providers', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('skills')) db.createObjectStore('skills', { keyPath: 'id' });
-      };
-      req.onsuccess = (e) => { 
-        this.db = e.target.result; 
-        resolve(this); 
-      };
-      req.onerror = (e) => reject(e.target.error);
+      if (!window.indexedDB) {
+         return reject(new Error("当前浏览器不支持 IndexedDB 本地数据库。"));
+      }
+
+      let isResolved = false;
+      
+      try {
+        const req = indexedDB.open(this.dbName, this.version);
+        
+        // 5秒超时强制抛出错误，防止浏览器静默挂起导致白屏
+        const timeoutId = setTimeout(() => {
+          if (!isResolved) reject(new Error("数据库连接超时 (可能被浏览器安全策略静默拦截)。"));
+        }, 5000);
+
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('chapters')) db.createObjectStore('chapters', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('providers')) db.createObjectStore('providers', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('skills')) db.createObjectStore('skills', { keyPath: 'id' });
+        };
+
+        req.onsuccess = (e) => { 
+          isResolved = true;
+          clearTimeout(timeoutId);
+          this.db = e.target.result; 
+          resolve(this); 
+        };
+
+        req.onerror = (e) => {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          reject(new Error("数据库访问被拒绝: " + (e.target.error?.message || "未知错误，可能是隐私模式限制")));
+        };
+
+        req.onblocked = () => {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          reject(new Error("数据库升级被阻塞，请关闭其他占用该网页的标签页。"));
+        };
+      } catch (e) {
+        reject(new Error("无法打开数据库，严重安全限制: " + e.message));
+      }
     });
   }
 

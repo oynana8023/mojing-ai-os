@@ -157,6 +157,7 @@ class ModelGateway {
   autoAssignRoles(providers) {
     const allModels = [];
     Object.values(providers).forEach(p => {
+      if(!Array.isArray(p.models)) return;
       p.models.forEach(m => {
         allModels.push({
           providerId: p.id,

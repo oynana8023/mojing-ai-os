@@ -5,11 +5,29 @@ class NovelApp {
   }
 
   async init() {
-    await window.novelDB.init();
-    await this.loadProviders();
-    this.setupUI();
-    this.renderChapters();
-    this.renderSkills();
+    try {
+      // 尝试加载数据库
+      await window.novelDB.init();
+      await this.loadProviders();
+    } catch (err) {
+      console.error("数据引擎初始化失败:", err);
+      const errBox = document.getElementById('global-error-console');
+      if(errBox) {
+        errBox.classList.remove('hidden');
+        document.getElementById('global-error-text').innerText += `[数据库挂载失败]\n${err.message}\n(如果您在手机端，请务必退出【无痕模式/隐私浏览模式】，否则系统无法记录小说数据)\n\n`;
+      }
+    } finally {
+      // 【非常重要】不管数据库加载成功与否，UI事件必须强制绑定，否则底部导航条点击无反应！
+      this.setupUI();
+    }
+    
+    // 如果数据库坏了，这部分会报错，加上 catch 保证不阻塞
+    try {
+      await this.renderChapters();
+      await this.renderSkills();
+    } catch (err) {
+      console.warn("渲染视图受阻 (可能因为DB未就绪):", err);
+    }
   }
 
   async loadProviders() {
@@ -21,11 +39,17 @@ class NovelApp {
   }
 
   setupUI() {
+    // 底部导航栏强绑定
     document.querySelectorAll('[data-tab-btn]').forEach(btn => {
       btn.addEventListener('click', e => {
         const tab = e.currentTarget.getAttribute('data-tab-btn');
+        // 隐藏所有
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-        document.getElementById(`tab-${tab}`).classList.remove('hidden');
+        // 显示目标
+        const targetTab = document.getElementById(`tab-${tab}`);
+        if(targetTab) targetTab.classList.remove('hidden');
+        
+        // 激活高亮
         document.querySelectorAll('[data-tab-btn]').forEach(b => {
           b.classList.toggle('text-zinc-100', b.dataset.tabBtn === tab);
           b.classList.toggle('text-zinc-500', b.dataset.tabBtn !== tab);
@@ -33,6 +57,7 @@ class NovelApp {
       });
     });
 
+    // 绑定事件 (加入 ?. 防止DOM不存在时报错)
     document.getElementById('btn-batch-add')?.addEventListener('click', () => this.handleBatchAddProviders());
     document.getElementById('btn-refresh-all')?.addEventListener('click', () => this.handleRefreshAllFreePools());
     document.getElementById('btn-smart-assign')?.addEventListener('click', () => this.handleSmartAssign(true));
@@ -199,12 +224,17 @@ class NovelApp {
   }
 
   renderProviders() {
-    const allModels = Object.values(this.providers).flatMap(p => p.models.map(m => ({
-      pId: p.id, mId: m.id, name: `[${p.type}] ${m.id} ${m.isFree ? '(全免费)' : ''}`
-    })));
+    // 防御性提取所有模型
+    const allModels = Object.values(this.providers).flatMap(p => {
+      if(!Array.isArray(p.models)) return [];
+      return p.models.map(m => ({
+        pId: p.id, mId: m.id, name: `[${p.type}] ${m.id} ${m.isFree ? '(全免费)' : ''}`
+      }));
+    });
 
     const listHtml = Object.values(this.providers).map(p => {
-      const freeModels = p.models.filter(m => m.isFree);
+      const modelsArray = Array.isArray(p.models) ? p.models : [];
+      const freeModels = modelsArray.filter(m => m.isFree);
       const quotaText = p.quota?.text || '就绪';
       return `
         <div class="bg-zinc-800/50 p-3 rounded-xl border border-white/5 text-xs">
@@ -216,7 +246,7 @@ class NovelApp {
             <button class="text-rose-400 font-bold hover:underline" onclick="window.novelApp.deleteProvider('${p.id}')">移除</button>
           </div>
           <div class="text-[10px] text-zinc-400">
-            全部模型: ${p.models.length} 款 ｜ 
+            全部模型: ${modelsArray.length} 款 ｜ 
             <span class="text-emerald-400 font-semibold">今日可用免费模型: ${freeModels.length} 款</span>
           </div>
           ${freeModels.length > 0 ? `
