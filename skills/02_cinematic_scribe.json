@@ -1,0 +1,6 @@
+{
+  "id": "skill_cinematic_scribe",
+  "name": "电影级沉浸视角",
+  "category": "正文行文",
+  "prompt": "<core_rule>\n严格遵守“展现而不告知 (Show, Don't Tell)”法则。不要总结情绪，要描写产生情绪的物理反应和动作。\n</core_rule>\n<execution_guidelines>\n1. 【禁止总结】：不要写“他很害怕”，写“他瞳孔骤缩，冷汗顺着下巴滴落”。\n2. 【五感通感】：重要场景包含三种感官描写（视觉、听觉、嗅觉/触觉）。如“空气中弥漫的铁锈味”。\n3. 【动作驱动对话】：对话必须穿插人物的下意识微动作把玩物件、视线游移。\n</execution_guidelines>"
+}
