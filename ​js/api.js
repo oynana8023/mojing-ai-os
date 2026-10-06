@@ -82,7 +82,7 @@ class ModelGateway {
         const res = await fetch(config.balanceUrl, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         if (res.ok) {
           const json = await res.json();
-          const info = json.balance_infos?.[0];
+          const info = (json.balance_infos && json.balance_infos.length > 0) ? json.balance_infos[0] : null;
           if (info) return { text: `余额 ¥${parseFloat(info.total_balance).toFixed(2)}`, isAvailable: parseFloat(info.total_balance) > 0 };
         }
       } catch (e) { console.warn('DeepSeek 查额度受阻:', e); }
@@ -96,7 +96,8 @@ class ModelGateway {
 
   async fetchRemoteModels(providerKey, apiKey, customUrl = '') {
     const config = this.knownProviders[providerKey] || { baseUrl: customUrl };
-    let url = (customUrl || config.baseUrl).replace(/\/+$/, '') + '/models';
+    let url = customUrl || config.baseUrl || '';
+    url = url.replace(/\/+$/, '') + '/models';
 
     const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
@@ -135,7 +136,8 @@ class ModelGateway {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const results = [];
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       if (line.includes(':') && !line.startsWith('http')) {
         const parts = line.split(':');
         const pType = parts[0].trim().toLowerCase();
@@ -156,45 +158,54 @@ class ModelGateway {
 
   autoAssignRoles(providers) {
     const allModels = [];
-    Object.values(providers).forEach(p => {
-      if(!Array.isArray(p.models)) return;
-      p.models.forEach(m => {
-        allModels.push({
-          providerId: p.id,
-          providerType: p.type,
-          modelId: m.id,
-          isFree: m.isFree,
-          traits: m.traits || this.profileModelCapabilities(m.id, m.isFree)
+    Object.keys(providers).forEach(pKey => {
+      const p = providers[pKey];
+      if (p.models && p.models.length > 0) {
+        p.models.forEach(m => {
+          allModels.push({
+            providerId: p.id,
+            providerType: p.type,
+            modelId: m.id,
+            isFree: m.isFree,
+            traits: m.traits || this.profileModelCapabilities(m.id, m.isFree)
+          });
         });
-      });
+      }
     });
 
     if (allModels.length === 0) return {};
 
     const assignments = {};
-    const getBest = (scorer) => [...allModels].sort((a, b) => scorer(b) - scorer(a))[0];
+    const getBest = (scorer) => {
+      const sorted = allModels.slice().sort((a, b) => scorer(b) - scorer(a));
+      return sorted[0];
+    };
 
     const architect = getBest(m => (m.traits.isReasoning ? 100 : 0) + (m.traits.isFlagship ? 50 : 0) + (m.traits.isCreative ? 20 : 0));
-    assignments['ARCHITECT'] = { providerId: architect?.providerId, modelId: architect?.modelId, reason: architect?.traits.isReasoning ? '满血深度推理' : '大参数旗舰' };
+    if (architect) assignments['ARCHITECT'] = { providerId: architect.providerId, modelId: architect.modelId, reason: architect.traits.isReasoning ? '满血深度推理' : '大参数旗舰' };
 
     const market = getBest(m => (m.traits.isFlagship ? 80 : 0) + (m.traits.isReasoning ? 50 : 0));
-    assignments['MARKET_ANALYST'] = { providerId: market?.providerId, modelId: market?.modelId, reason: '爆款逻辑拆解' };
+    if (market) assignments['MARKET_ANALYST'] = { providerId: market.providerId, modelId: market.modelId, reason: '爆款逻辑拆解' };
 
     const scribe = getBest(m => (m.isFree ? 200 : -100) + (m.traits.isCreative ? 50 : 0) + (m.traits.isFlagship ? 30 : 0));
-    assignments['SCRIBE'] = { providerId: scribe?.providerId, modelId: scribe?.modelId, reason: scribe?.isFree ? '动态 0 成本主力' : '高画质网文写手' };
+    if (scribe) assignments['SCRIBE'] = { providerId: scribe.providerId, modelId: scribe.modelId, reason: scribe.isFree ? '动态 0 成本主力' : '高画质网文写手' };
 
     const editor = getBest(m => (m.traits.isCreative ? 80 : 0) + (m.isFree ? 50 : 0));
-    assignments['DE_AI_EDITOR'] = { providerId: editor?.providerId, modelId: editor?.modelId, reason: '中文去AI味特化' };
+    if (editor) assignments['DE_AI_EDITOR'] = { providerId: editor.providerId, modelId: editor.modelId, reason: '中文去AI味特化' };
 
     const guardian = getBest(m => (m.isFree ? 200 : -100) + (m.traits.isFast ? 80 : 0));
-    assignments['GUARDIAN'] = { providerId: guardian?.providerId, modelId: guardian?.modelId, reason: '高速免费轻量守卫' };
+    if (guardian) assignments['GUARDIAN'] = { providerId: guardian.providerId, modelId: guardian.modelId, reason: '高速免费轻量守卫' };
 
     return assignments;
   }
 
   async chatCompletion({ providerConfig, modelId, messages, maxTokens = 3000, temperature = 0.7, retries = 3 }) {
-    let url = (providerConfig.baseUrl || this.knownProviders[providerConfig.type]?.baseUrl || '').replace(/\/+$/, '') + '/chat/completions';
-    const payload = { model: modelId, messages, temperature, max_tokens: maxTokens, stream: false };
+    let url = providerConfig.baseUrl || '';
+    if (!url && this.knownProviders[providerConfig.type]) {
+      url = this.knownProviders[providerConfig.type].baseUrl || '';
+    }
+    url = url.replace(/\/+$/, '') + '/chat/completions';
+    const payload = { model: modelId, messages: messages, temperature: temperature, max_tokens: maxTokens, stream: false };
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
