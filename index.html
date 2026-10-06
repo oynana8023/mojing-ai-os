@@ -13,61 +13,44 @@
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col font-sans antialiased">
   
-  <!-- 全局错误拦截器脚本 (已加入智能插件白名单过滤) -->
   <script>
     window.addEventListener('error', function(e) {
-      const msg = (e.message || '').toLowerCase();
-      const filename = (e.filename || '').toLowerCase();
-      
-      // 【智能过滤器】：屏蔽常见的浏览器插件和翻译工具引发的无意义报错
-      if (msg.includes('script error') && e.lineno === 0) return; 
-      if (msg.includes('resizeobserver')) return; // 翻译插件频繁引发的DOM重绘报错
-      if (filename.includes('extension://') || filename.includes('safari-extension')) return; // 明确屏蔽插件脚本
-      if (msg.includes('translate') || msg.includes('adblock') || msg.includes('ucbrowser')) return;
-
+      if (!e.filename || e.lineno === 0) return; 
       const box = document.getElementById('global-error-console');
       const text = document.getElementById('global-error-text');
       if(box && text) {
         box.classList.remove('hidden');
-        text.innerText += `[代码异常] ${e.message} \n位置: ${e.filename || '未知'}:${e.lineno}\n\n`;
+        text.innerText += `[JS报错] ${e.message} (${e.filename}:${e.lineno})\n`;
       }
     });
-
     window.addEventListener('unhandledrejection', function(e) {
       const reason = (e.reason || '').toString().toLowerCase();
-      
-      // 屏蔽去广告插件拦截网络请求产生的异步报错
       if (reason.includes('extension') || reason.includes('blocked by client') || reason.includes('err_blocked_by_client')) return;
-
       const box = document.getElementById('global-error-console');
       const text = document.getElementById('global-error-text');
       if(box && text) {
         box.classList.remove('hidden');
-        text.innerText += `[系统报错] ${e.reason}\n\n`;
+        text.innerText += `[异步报错] ${e.reason}\n\n`;
       }
     });
   </script>
 
-  <!-- 全局报错可视化面板 (固定在屏幕上方) -->
   <div id="global-error-console" class="hidden fixed top-0 left-0 w-full z-50 bg-rose-950/95 border-b border-rose-500/50 backdrop-blur-md p-4 pt-[env(safe-area-inset-top)] shadow-xl">
     <div class="flex justify-between items-center mb-2">
       <h3 class="text-xs font-bold text-rose-400">⚠️ 系统运行异常报告</h3>
       <button onclick="document.getElementById('global-error-console').classList.add('hidden')" class="bg-rose-900 hover:bg-rose-800 text-rose-200 px-3 py-1 rounded text-[10px] transition-colors">关闭屏蔽</button>
     </div>
     <div id="global-error-text" class="text-[10px] text-rose-200 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
-    <p class="text-[10px] text-rose-400/80 mt-2 font-bold border-t border-rose-900 pt-2 leading-relaxed">
-      开发者提示：<br>如果你看到此面板，说明发生了真实的系统故障（插件干扰已被过滤）。<br>常见原因：手机开启了“无痕模式/隐私浏览”导致数据库崩溃，或 API 余额不足。请截图本面板以供排查。
-    </p>
   </div>
 
   <header class="sticky top-0 z-40 bg-zinc-900/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center">
     <div class="flex items-center space-x-2">
       <div class="w-7 h-7 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-100 font-black text-sm">墨</div>
-      <h1 class="text-sm font-bold tracking-wide">墨境 AI OS 4.1</h1>
+      <h1 class="text-sm font-bold tracking-wide">墨境 AI OS 5.0</h1>
     </div>
     <div class="flex items-center gap-1.5">
       <span class="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full font-mono">
-        防崩溃容灾系统已激活
+        缓存破除版
       </span>
     </div>
   </header>
@@ -128,7 +111,7 @@
     <section id="tab-deai" class="tab-content hidden">
       <div class="glass-card p-4">
         <h2 class="text-sm font-bold text-zinc-100 mb-2">修罗场：独立去AI味引擎</h2>
-        <p class="text-[11px] text-zinc-500 mb-3">剔除“嘴角勾起一抹笑容”、“倒吸一口凉气”等套话，重塑真实网文语感。</p>
+        <p class="text-[11px] text-zinc-500 mb-3">剔除“嘴角勾起一抹笑容”等套话，重塑真实网文语感。</p>
         <div class="space-y-3">
           <textarea id="inp-raw-text" rows="6" placeholder="粘贴需要洗稿/精修的文本..." class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-3 text-xs"></textarea>
           <select id="inp-deai-style" class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-2.5 text-xs">
@@ -165,7 +148,6 @@
 
     <!-- Tab 5: 模型与配置 -->
     <section id="tab-config" class="tab-content hidden">
-      <!-- 批量接入控制面板 -->
       <div class="glass-card p-4 mb-4">
         <div class="flex justify-between items-center mb-1">
           <h2 class="text-sm font-bold text-zinc-100">⚡ 批量接入与全网免费池探测</h2>
@@ -185,7 +167,6 @@
         <div id="providers-list" class="space-y-2.5"></div>
       </div>
 
-      <!-- 智能体派工中心 -->
       <div class="glass-card p-4 mb-4">
         <div class="flex justify-between items-center mb-2">
           <h3 class="text-xs font-bold text-amber-400">智能体工位指派 (自适应)</h3>
@@ -197,7 +178,6 @@
         <div id="agent-assignments" class="space-y-2"></div>
       </div>
 
-      <!-- 技能库板块 -->
       <div class="glass-card p-4 mb-4 border border-sky-900/50">
         <h2 class="text-sm font-bold text-sky-400 mb-2">🧩 外挂技能库 (Skills)</h2>
         <p class="text-[10px] text-zinc-400 mb-3">输入 GitHub Raw 链接或本地预置技能路径 (如: ./skills/01_master_beat_sheet.json)，自动融合最高级法则。</p>
@@ -220,7 +200,6 @@
     </div>
   </nav>
 
-  <!-- 阅读弹窗 -->
   <div id="reading-modal" class="fixed inset-0 z-50 bg-zinc-950 hidden flex flex-col p-4 pt-[env(safe-area-inset-top)]">
     <div class="flex justify-between items-center pb-3 border-b border-white/10 mt-2">
       <h3 id="reading-title" class="font-bold text-base text-zinc-200"></h3>
@@ -229,10 +208,11 @@
     <div id="reading-body" class="flex-1 overflow-y-auto py-4 text-zinc-300 leading-loose text-[15px] whitespace-pre-wrap user-select-text"></div>
   </div>
 
-  <script src="./js/db.js"></script>
-  <script src="./js/api.js"></script>
-  <script src="./js/skills.js"></script>
-  <script src="./js/agents.js"></script>
-  <script src="./js/app.js"></script>
+  <!-- 【强制破除死缓存】给 JS 脚本加上强随机版本号 -->
+  <script src="./js/db.js?v=5.0"></script>
+  <script src="./js/api.js?v=5.0"></script>
+  <script src="./js/skills.js?v=5.0"></script>
+  <script src="./js/agents.js?v=5.0"></script>
+  <script src="./js/app.js?v=5.0"></script>
 </body>
 </html>
