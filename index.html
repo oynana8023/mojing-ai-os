@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>墨境 AI - 智能全自动长篇网文 OS</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#09090b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col font-sans antialiased">
+  <header class="sticky top-0 z-40 bg-zinc-900/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center">
+    <div class="flex items-center space-x-2">
+      <div class="w-7 h-7 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-100 font-black text-sm">墨</div>
+      <h1 class="text-sm font-bold tracking-wide">墨境 AI OS 4.0</h1>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span class="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full font-mono">
+        智能调度引擎激活
+      </span>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto px-4 py-4 pb-24 space-y-4">
+    <!-- Tab 1: 创作台 -->
+    <section id="tab-workspace" class="tab-content">
+      <div class="glass-card p-4">
+        <h2 class="text-sm font-bold text-zinc-100 mb-3 flex items-center justify-between">
+          <span>灵感启动与题材定向</span>
+          <span class="text-[10px] text-zinc-500 font-normal">多 AI 协同产出</span>
+        </h2>
+        <div class="space-y-3">
+          <textarea id="inp-idea" rows="3" class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-3 text-xs focus:border-zinc-500 transition-colors" placeholder="输入核心脑洞或金手指... 例如：穿越到诡异修仙界，主角的金手指是能将所有受到的伤害转化为寿元与功法经验..."></textarea>
+          <div class="grid grid-cols-2 gap-2">
+            <select id="inp-genre" class="bg-zinc-900/50 border border-white/10 rounded-xl p-2.5 text-xs">
+              <option value="玄幻脑洞/升级爽文">玄幻脑洞 / 升级爽文</option>
+              <option value="都市异能/神豪系统">都市异能 / 神豪系统</option>
+              <option value="科幻星际/赛博修真">科幻星际 / 赛博修真</option>
+              <option value="悬疑惊悚/规则怪谈">悬疑惊悚 / 规则怪谈</option>
+              <option value="女频古言/快穿逆袭">女频古言 / 快穿逆袭</option>
+            </select>
+            <input type="number" id="inp-chapters" value="3" min="1" max="50" class="bg-zinc-900/50 border border-white/10 rounded-xl p-2.5 text-xs" placeholder="生成章数">
+          </div>
+          <button id="btn-start-pipeline" class="btn-primary">启动九层流水线创作</button>
+        </div>
+      </div>
+
+      <div class="glass-card p-4 mt-4">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-xs font-bold text-zinc-400">流水线协同作业终端 (实时日志)</h3>
+          <span id="pipeline-status" class="text-[10px] text-zinc-500 font-mono">IDLE</span>
+        </div>
+        <div id="pipeline-logs" class="bg-zinc-950 border border-white/5 rounded-xl p-3 h-56 overflow-y-auto font-mono text-xs text-zinc-500 flex flex-col gap-2">
+          <div class="text-center py-10">等待任务启动... 将展示自动选模、大纲推演、主笔写稿、去AI味与状态提取全过程</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: 拆书扫榜 -->
+    <section id="tab-deconstruct" class="tab-content hidden">
+      <div class="glass-card p-4">
+        <h2 class="text-sm font-bold text-zinc-100 mb-2">一键爆款拆解引擎</h2>
+        <p class="text-[11px] text-zinc-500 mb-3">输入书名或粘贴前三章，自动派发最强大模型逆向工程爽点模型与黄金节奏。</p>
+        <div class="space-y-3">
+          <input type="text" id="inp-book-name" placeholder="小说书名 (如: 道诡异仙)" class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-3 text-xs">
+          <textarea id="inp-book-text" rows="5" placeholder="可选: 粘贴原文片段以供精准拆解..." class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-3 text-xs"></textarea>
+          <button id="btn-deconstruct" class="btn-primary">逆向拆解并生成模板</button>
+        </div>
+      </div>
+      <div id="deconstruct-result" class="glass-card p-4 mt-4 hidden">
+        <h3 class="text-xs font-bold text-emerald-400 mb-2">拆解分析报告</h3>
+        <div id="deconstruct-output" class="whitespace-pre-wrap text-xs text-zinc-300 leading-relaxed user-select-text"></div>
+      </div>
+    </section>
+
+    <!-- Tab 3: 去AI味洗稿 -->
+    <section id="tab-deai" class="tab-content hidden">
+      <div class="glass-card p-4">
+        <h2 class="text-sm font-bold text-zinc-100 mb-2">修罗场：独立去AI味引擎</h2>
+        <p class="text-[11px] text-zinc-500 mb-3">剔除“嘴角勾起一抹笑容”、“倒吸一口凉气”等套话，重塑真实网文语感。</p>
+        <div class="space-y-3">
+          <textarea id="inp-raw-text" rows="6" placeholder="粘贴需要洗稿/精修的文本..." class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-3 text-xs"></textarea>
+          <select id="inp-deai-style" class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-2.5 text-xs">
+            <option value="克制平实">克制平实 (短句推进，动作向)</option>
+            <option value="网文爽感">网文爽感 (强化装逼打脸张力)</option>
+            <option value="古言细腻">古言细腻 (增加五感与环境描写)</option>
+          </select>
+          <button id="btn-run-deai" class="btn-primary">执行高维去 AI 味精修</button>
+        </div>
+      </div>
+      <div id="deai-result" class="glass-card p-4 mt-4 hidden">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-xs font-bold text-sky-400">精修结果</h3>
+          <button id="btn-copy-deai" class="text-[10px] bg-zinc-800 px-2 py-1 rounded text-zinc-300">复制全文</button>
+        </div>
+        <div id="deai-output" class="text-xs text-zinc-300 leading-loose user-select-text whitespace-pre-wrap"></div>
+      </div>
+    </section>
+
+    <!-- Tab 4: 设定与章节 -->
+    <section id="tab-lore" class="tab-content hidden">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold text-zinc-200">全书成稿库</h2>
+        <button id="btn-export-book" class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[10px] px-3 py-1.5 rounded-lg font-bold">
+          一键导出 .md
+        </button>
+      </div>
+      <div class="glass-card p-4 mb-4">
+        <h3 class="text-xs font-bold text-amber-400 mb-2">世界观与大纲基建</h3>
+        <div id="lore-container" class="text-[11px] text-zinc-400 leading-relaxed max-h-36 overflow-y-auto whitespace-pre-wrap">暂无档案，请在创作台运行一次流水线。</div>
+      </div>
+      <div id="chapters-list" class="space-y-3"></div>
+    </section>
+
+    <!-- Tab 5: 模型与配置 -->
+    <section id="tab-config" class="tab-content hidden">
+      <!-- 批量接入控制面板 -->
+      <div class="glass-card p-4 mb-4">
+        <div class="flex justify-between items-center mb-1">
+          <h2 class="text-sm font-bold text-zinc-100">⚡ 批量接入与全网免费池探测</h2>
+          <span class="text-[10px] bg-sky-950 text-sky-400 border border-sky-800 px-2 py-0.5 rounded-full">实时探针</span>
+        </div>
+        <p class="text-[10px] text-zinc-400 mb-3">支持一行一个同时粘贴多个厂商的 Key，系统将并发测试并提取当前所有 0 成本模型。</p>
+
+        <textarea id="inp-batch-keys" rows="4" class="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-3 text-xs text-zinc-200 font-mono mb-2" placeholder="支持批量格式 (每行一个)：&#10;openrouter: sk-or-v1-xxxx&#10;siliconflow: sk-xxxx&#10;zhipu: xxxx.xxxx&#10;groq: gsk_xxxx"></textarea>
+
+        <div class="flex gap-2 mb-3">
+          <button id="btn-batch-add" class="btn-primary flex-1">批量探查并接入</button>
+          <button id="btn-refresh-all" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 rounded-xl text-xs font-bold shrink-0 border border-white/5">
+            🔄 刷新免费池
+          </button>
+        </div>
+        
+        <div id="providers-list" class="space-y-2.5"></div>
+      </div>
+
+      <!-- 智能体派工中心 -->
+      <div class="glass-card p-4 mb-4">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-xs font-bold text-amber-400">智能体工位指派 (自适应)</h3>
+          <button id="btn-smart-assign" class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-1 rounded-lg hover:bg-amber-500/30 transition">
+            ⚡ 重新计算最优配置
+          </button>
+        </div>
+        <p class="text-[10px] text-zinc-500 mb-3">防破产机制：高频写稿自动锁定免费池，如果某模型明天恢复收费，系统自动移出并顶替。</p>
+        <div id="agent-assignments" class="space-y-2"></div>
+      </div>
+
+      <!-- 技能库板块 -->
+      <div class="glass-card p-4 mb-4 border border-sky-900/50">
+        <h2 class="text-sm font-bold text-sky-400 mb-2">🧩 外挂技能库 (Skills)</h2>
+        <p class="text-[10px] text-zinc-400 mb-3">输入 GitHub Raw 链接或本地预置技能路径 (如: ./skills/01_master_beat_sheet.json)，自动融合最高级法则。</p>
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="inp-skill-url" placeholder="如: ./skills/01_master_beat_sheet.json" class="flex-1 bg-zinc-900/50 border border-white/10 rounded-xl p-2 text-xs text-zinc-200">
+          <button id="btn-import-skill" class="bg-sky-600 px-3 rounded-xl text-xs font-bold text-white shrink-0">装载</button>
+        </div>
+        <div id="skills-list" class="space-y-2 mt-2"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-zinc-900/90 backdrop-blur-xl border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
+    <div class="grid grid-cols-5 gap-1 px-2 py-2 text-center">
+      <button data-tab-btn="workspace" class="flex flex-col items-center py-1 text-zinc-100"><span class="text-lg opacity-80">✍️</span><span class="text-[10px] mt-1">创作</span></button>
+      <button data-tab-btn="deconstruct" class="flex flex-col items-center py-1 text-zinc-500"><span class="text-lg opacity-80">🔍</span><span class="text-[10px] mt-1">拆书</span></button>
+      <button data-tab-btn="deai" class="flex flex-col items-center py-1 text-zinc-500"><span class="text-lg opacity-80">🪄</span><span class="text-[10px] mt-1">洗稿</span></button>
+      <button data-tab-btn="lore" class="flex flex-col items-center py-1 text-zinc-500"><span class="text-lg opacity-80">📖</span><span class="text-[10px] mt-1">章节</span></button>
+      <button data-tab-btn="config" class="flex flex-col items-center py-1 text-zinc-500"><span class="text-lg opacity-80">⚙️</span><span class="text-[10px] mt-1">配置</span></button>
+    </div>
+  </nav>
+
+  <!-- 阅读弹窗 -->
+  <div id="reading-modal" class="fixed inset-0 z-50 bg-zinc-950 hidden flex flex-col p-4 pt-[env(safe-area-inset-top)]">
+    <div class="flex justify-between items-center pb-3 border-b border-white/10 mt-2">
+      <h3 id="reading-title" class="font-bold text-base text-zinc-200"></h3>
+      <button onclick="document.getElementById('reading-modal').classList.add('hidden')" class="text-xs bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg">返回</button>
+    </div>
+    <div id="reading-body" class="flex-1 overflow-y-auto py-4 text-zinc-300 leading-loose text-[15px] whitespace-pre-wrap user-select-text"></div>
+  </div>
+
+  <script src="./js/db.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/skills.js"></script>
+  <script src="./js/agents.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
