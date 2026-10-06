@@ -1,0 +1,55 @@
+name: Build Android APP
+
+on:
+  workflow_dispatch:  # 允许手动点击打包
+  push:
+    branches: [ "main", "master" ] # 每次修改代码自动打包
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 配置 Java 环境 (Android 编译需要)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 准备 APP 资源
+        run: |
+          mkdir www
+          # 将你仓库里的单文件代码移入打包目录
+          cp index.html www/
+          # 生成 APP 配置文件
+          echo '{"appId": "com.mojing.ai.os", "appName": "墨境AI", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
+
+      - name: 安装 Capacitor (跨平台打包核心)
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/android
+          npm install -D @capacitor/cli
+          
+      - name: 生成 Android 工程
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: 编译生成 APK 安装包
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: 上传 APK 供手机下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mojing_AI_OS_安卓安装包
+          path: android/app/build/outputs/apk/debug/app-debug.apk
