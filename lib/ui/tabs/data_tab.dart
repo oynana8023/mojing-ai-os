@@ -33,7 +33,8 @@ class DataTab extends StatelessWidget {
                         gridBorderData: const BorderSide(color: Color(0xFF334155)),
                         radarBorderData: const BorderSide(color: Colors.transparent),
                         titlePositionPercentageOffset: 0.1,
-                        getTitle: (index, angle) => RadarChartTitle(text: ['爽点密度', '脑洞创意', '文笔细腻', '剧情节奏', '毒点排雷', '情绪价值'][index], textStyle: const TextStyle(fontSize: 10, color: Colors.white70)),
+                        // 【修复处】:移除了 textStyle 参数，目前版本无需强行指定字体，默认即可
+                        getTitle: (index, angle) => RadarChartTitle(text: ['爽点密度', '脑洞创意', '文笔细腻', '剧情节奏', '毒点排雷', '情绪价值'][index]),
                         dataSets: [
                           RadarDataSet(fillColor: const Color(0xFF38BDF8).withOpacity(0.3), borderColor: const Color(0xFF38BDF8), entryRadius: 2, dataEntries: const [RadarEntry(value: 5), RadarEntry(value: 4), RadarEntry(value: 3), RadarEntry(value: 5), RadarEntry(value: 4), RadarEntry(value: 3)]),
                           RadarDataSet(fillColor: const Color(0xFFF472B6).withOpacity(0.3), borderColor: const Color(0xFFF472B6), entryRadius: 2, dataEntries: const [RadarEntry(value: 2), RadarEntry(value: 3), RadarEntry(value: 5), RadarEntry(value: 3), RadarEntry(value: 2), RadarEntry(value: 5)]),
