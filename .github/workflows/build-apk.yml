@@ -22,11 +22,9 @@ jobs:
           channel: 'stable'
           
       - run: |
-          # 自动补全 Android 底层工程文件
-          flutter create . --platforms android
-          # 拉取 pubspec.yaml 中的依赖库
+          # 强行指定底层的合法包名，绕过 GitHub 仓库名的横杠限制
+          flutter create . --project-name mojing_ai_os --platforms android
           flutter pub get
-          # 编译极致性能的 Release 版安装包
           flutter build apk --release
           
       - uses: actions/upload-artifact@v4
