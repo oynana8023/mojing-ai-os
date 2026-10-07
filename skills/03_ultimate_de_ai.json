@@ -1,6 +1,0 @@
-{
-  "id": "skill_ultimate_de_ai",
-  "name": "终极去AI味语感净化",
-  "category": "精修洗稿",
-  "prompt": "<negative_constraints>\n必须彻底禁用以下AI高频词汇与句式：\n- 动作类：嘴角勾起一抹笑容、倒吸一口凉气、眼中闪过一丝精芒、眉头微皱、不由得。\n- 形容类：宛如、仿佛、难以言喻、不可思议、古老而神秘。\n- 总结类：总而言之、命运的齿轮开始转动、诉说着...\n</negative_constraints>\n<tone_reconstruction>\n变长句为短句。打斗和冲突高潮时，连续使用不超过8个字的短句。主角装逼成功后，用周围环境的死寂侧面烘托。\n</tone_reconstruction>"
-}
