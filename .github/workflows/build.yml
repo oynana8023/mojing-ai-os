@@ -31,6 +31,26 @@ jobs:
             sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <application|' $MANIFEST
           fi
 
+      - name: Upgrade Kotlin version
+        run: |
+          SETTINGS=android/settings.gradle
+          BUILD_GRADLE=android/build.gradle
+          if [ -f "$SETTINGS" ]; then
+            sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/g' $SETTINGS
+            sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/g' $SETTINGS
+          fi
+          if [ -f "$BUILD_GRADLE" ]; then
+            if grep -q "ext.kotlin_version" $BUILD_GRADLE; then
+              sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.24'/g" $BUILD_GRADLE
+            else
+              sed -i "s|dependencies {|ext.kotlin_version = '1.9.24'\ndependencies {|" $BUILD_GRADLE
+            fi
+          fi
+          echo "--- settings.gradle ---"
+          cat $SETTINGS || true
+          echo "--- build.gradle ---"
+          cat $BUILD_GRADLE || true
+
       - name: Get dependencies
         run: flutter pub get
 
