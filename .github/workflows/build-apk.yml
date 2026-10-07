@@ -22,8 +22,13 @@ jobs:
           channel: 'stable'
           
       - run: |
-          # 强行指定底层的合法包名，绕过 GitHub 仓库名的横杠限制
+          # 1. 创建合法的 Android 工程壳子
           flutter create . --project-name mojing_ai_os --platforms android
+          
+          # 2. 核心修复：强行将 settings.gradle 中的 Kotlin 版本升级到 1.9.24
+          sed -i 's/id "org.jetbrains.kotlin.android" version "1.7.10" apply false/id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' android/settings.gradle
+          
+          # 3. 拉取依赖并编译
           flutter pub get
           flutter build apk --release
           
