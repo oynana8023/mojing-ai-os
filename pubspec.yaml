@@ -1,7 +1,7 @@
 name: mojing_ai_os
-description: 墨境 AI OS - 15大功能满血旗舰版
+description: 墨境 AI OS - 商业全息版 (23大功能全覆盖)
 publish_to: 'none'
-version: 2.0.0
+version: 5.0.0
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -13,6 +13,10 @@ dependencies:
   path_provider: ^2.1.2
   path: ^1.8.3
   http: ^1.2.0
+  fl_chart: ^0.66.0       # 商业级图表 (雷达图/折线图)
+  url_launcher: ^6.2.5    # 外部跳转
+  google_fonts: ^6.1.0    # 商业级排版字体
+  flutter_staggered_grid_view: ^0.7.0 # 瀑布流布局
 
 flutter:
   uses-material-design: true
