@@ -16,13 +16,22 @@ class _ConfigTabState extends State<ConfigTab> {
   bool _isLoading = false;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+  }
+
   Future<void> _load() async {
     final p = await DBHelper.instance.queryAll('providers');
     final a = await DBHelper.instance.queryAll('assignments');
     final map = <String, Map<String, dynamic>>{};
-    for (var x in a) { map[x['role_key']] = x; }
-    setState(() { _providers = p; _assigns = map; });
+    for (var x in a) {
+      map[x['role_key'].toString()] = Map<String, dynamic>.from(x);
+    }
+    setState(() {
+      _providers = p;
+      _assigns = map;
+    });
   }
 
   Future<void> _batchAdd() async {
@@ -34,10 +43,18 @@ class _ConfigTabState extends State<ConfigTab> {
       final parts = l.split(':');
       final type = parts[0].trim().toLowerCase();
       final key = parts.sublist(1).join(':').trim();
+      if (!ApiEngine.providerUrls.containsKey(type)) continue;
       try {
         final models = await ApiEngine.fetchModels(type, key);
-        await DBHelper.instance.insert('providers', {'id': 'p_${DateTime.now().millisecondsSinceEpoch}', 'type': type, 'api_key': key, 'models_json': models.toString()});
-      } catch (e) { debugPrint(e.toString()); }
+        await DBHelper.instance.insert('providers', {
+          'id': 'p_${DateTime.now().millisecondsSinceEpoch}_$type',
+          'type': type,
+          'api_key': key,
+          'models_json': models.toString(),
+        });
+      } catch (e) {
+        debugPrint('provider $type 探测失败: $e');
+      }
     }
     _keyCtrl.clear();
     await _load();
@@ -46,9 +63,15 @@ class _ConfigTabState extends State<ConfigTab> {
 
   Future<void> _autoAssign() async {
     if (_providers.isEmpty) return;
-    final p = _providers.first; 
+    final p = _providers.first;
+    final type = p['type'] as String;
+    final modelId = ApiEngine.defaultModel(type);
     for (var role in AgentDirector.roles.keys) {
-      await DBHelper.instance.insert('assignments', {'role_key': role, 'provider_id': p['id'], 'model_id': p['type'] == 'siliconflow' ? 'Qwen/Qwen2.5-7B-Instruct' : 'auto'});
+      await DBHelper.instance.insert('assignments', {
+        'role_key': role,
+        'provider_id': p['id'],
+        'model_id': modelId,
+      });
     }
     await _load();
   }
@@ -58,40 +81,71 @@ class _ConfigTabState extends State<ConfigTab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text("工作室基建配置", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text("工作室基建配置",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: const Color(0xFF18181B),
+              borderRadius: BorderRadius.circular(12)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("1. 录入全网 API", style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+              const Text("1. 录入全网 API",
+                  style: TextStyle(
+                      color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              TextField(controller: _keyCtrl, maxLines: 3, decoration: const InputDecoration(hintText: 'siliconflow: sk-...\ndeepseek: sk-...', filled: true, fillColor: Colors.black26)),
+              TextField(
+                controller: _keyCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText:
+                      'siliconflow: sk-...\ndeepseek: sk-...\ngroq: gsk_...\nopenrouter: sk-or-...',
+                  filled: true,
+                  fillColor: Colors.black26,
+                ),
+              ),
               const SizedBox(height: 8),
-              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _isLoading ? null : _batchAdd, child: const Text("并发嗅探全网免费模型"))),
-              Text("已接入节点数: ${_providers.length}", style: const TextStyle(color: Colors.grey, fontSize: 12))
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _batchAdd,
+                  child: const Text("并发嗅探全网免费模型"),
+                ),
+              ),
+              Text("已接入节点数: ${_providers.length}",
+                  style: const TextStyle(color: Colors.grey, fontSize: 12))
             ],
           ),
         ),
         const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: const Color(0xFF18181B),
+              borderRadius: BorderRadius.circular(12)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("2. 智能体 HR 自动排班", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-                  TextButton(onPressed: _autoAssign, child: const Text("⚡ 自动分配"))
+                  const Text("2. 智能体 HR 自动排班",
+                      style: TextStyle(
+                          color: Colors.amber, fontWeight: FontWeight.bold)),
+                  TextButton(
+                      onPressed: _autoAssign, child: const Text("⚡ 自动分配"))
                 ],
               ),
               ...AgentDirector.roles.entries.map((e) {
                 final cur = _assigns[e.key];
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text("${e.value}: ${cur != null ? cur['model_id'] : '未指派'}", style: const TextStyle(fontSize: 12)),
+                  child: Text(
+                    "${e.value}: ${cur != null ? cur['model_id'] : '未指派'}",
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 );
               }),
             ],
