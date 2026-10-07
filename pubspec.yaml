@@ -1,0 +1,18 @@
+name: mojing_ai_os
+description: 墨境 AI OS - 15大功能满血旗舰版
+publish_to: 'none'
+version: 2.0.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.3.0
+  path_provider: ^2.1.2
+  path: ^1.8.3
+  http: ^1.2.0
+
+flutter:
+  uses-material-design: true
